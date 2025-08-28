@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package processor;
+
+option go_package = "./proto";
+
+service WebhookProcessorService {
+  rpc ProcessWebhook(ProcessWebhookRequest) returns (ProcessWebhookResponse);
+}
+
+message ProcessWebhookRequest {
+  string id = 1;
+  string payload = 2;
+}
+
+message ProcessWebhookResponse {
+  string status = 1;
+  string message = 2;
+}
