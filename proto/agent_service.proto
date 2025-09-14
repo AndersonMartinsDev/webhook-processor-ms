@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package agent;
+
+option go_package = "seu-projeto/proto";
+
+service AIAgentService {
+  rpc CreateAgent(CreateAgentRequest) returns (CreateAgentResponse);
+  rpc UpdateAgent(UpdateAgentRequest) returns (UpdateAgentResponse);
+  rpc GetAgent(GetAgentRequest) returns (GetAgentResponse);
+  rpc ListAgents(ListAgentsRequest) returns (ListAgentsResponse);
+  rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentResponse);
+  rpc GetAgentModelByPhone(AgentRequest) returns (AgentResponse);
+}
+message AgentRequest {
+  string phoneNumber = 1;
+}
+ 
+message AgentResponse {
+  string status = 1;
+  uint64 agentId = 2;
+}
+
+// Mensagem para CreateAgent
+message CreateAgentRequest {
+  string name = 1;
+  uint32 modelId = 2;
+  string companyName = 3;
+  string companyDescription = 4;
+  string behaviourIa = 5;
+  string companyUrl = 6;
+  string uuid_user = 7;
+}
+
+message CreateAgentResponse {
+  string id = 1;
+  string status = 2;
+}
+
+// Mensagem para UpdateAgent
+message UpdateAgentRequest {
+  uint64 id = 1;
+  string name = 2;
+  uint32 modelId = 3;
+  string companyName = 4;
+  string companyDescription = 5;
+  string behaviourIa = 6;
+  string companyUrl = 7;
+  string uuid_user = 8;
+}
+
+message UpdateAgentResponse {
+  string status = 1;
+}
+
+// Mensagem para GetAgent
+message GetAgentRequest {
+  uint64 id = 1;
+  string uuid_user = 2;
+  bool instructions = 3;
+}
+
+message Agent {
+  uint64 id = 1;
+  string name = 2;
+  uint32 modelId = 3;
+  string companyName = 4;
+  string companyDescription = 5;
+  string behaviourIa = 6;
+  string companyUrl = 7;
+  string uuid_user = 8;
+  string instructions = 9;
+}
+
+message GetAgentResponse {
+  Agent agent = 1;
+}
+
+// Mensagem para ListAgents
+message ListAgentsRequest {
+  string uuid_user = 1;
+}
+
+message ListAgentsResponse {
+  repeated Agent agents = 1;
+}
+
+// Mensagem para DeleteAgent
+message DeleteAgentRequest {
+  string id = 1;
+  string uuid_user = 2;
+}
+
+message DeleteAgentResponse {
+  string status = 1;
+}

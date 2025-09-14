@@ -1,16 +1,16 @@
 package main
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 
-	"webhook-processor-ms/internal/application/handler"
-	"webhook-processor-ms/internal/application/services"
+	"webhook-processor-ms/cmd"
 	"webhook-processor-ms/internal/infrastructure/configuration"
-	"webhook-processor-ms/internal/infrastructure/rabbitmq"
-	pb "webhook-processor-ms/proto"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
@@ -20,42 +20,53 @@ import (
 func main() {
 	configuration.LoadEnv()
 	configuration.LoadLogger()
-	// 1. Conecta ao RabbitMQ
-	rabbitMQURL := os.Getenv("RABBITMQ_URL")
-	if rabbitMQURL == "" {
-		rabbitMQURL = "amqp://rabbitmq:root@lead-docker.duckdns.org:5672/"
-	}
-	conn, err := amqp.Dial(rabbitMQURL)
+	configuration.LoadRedis()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ms_compose := cmd.NewMSCompose()
+
+	// Conexão com o RabbitMQ
+	conn, err := amqp.Dial(ms_compose.RabbitMQURL)
 	if err != nil {
 		log.Fatalf("Falha ao conectar no RabbitMQ: %v", err)
 	}
+
+	// Injeção de dependências e inicialização dos serviços
+	webhook_service := ms_compose.MessageProcessorConfiguration(conn)
+
+	// Defer para fechar recursos (importante a ordem)
+	defer webhook_service.Publisher.Close()
+	defer webhook_service.Consumer.Close()
 	defer conn.Close()
 
-	// 2. Cria o publicador de mensagens (infraestrutura)
-	publisher, err := rabbitmq.NewPublisher(conn)
-	if err != nil {
-		log.Fatalf("Falha ao criar publicador RabbitMQ: %v", err)
-	}
-	defer publisher.Close()
+	// 1. Inicia o consumidor do RabbitMQ em uma goroutine
+	go webhook_service.ProcessMessages(ctx)
 
-	// 3. Cria o serviço de aplicação injetando o publicador (Aplicação)
-	webhookService := services.NewWebhookService(publisher)
-
-	// 4. Cria o handler gRPC injetando o serviço (Aplicação)
-	webhookHandler := handler.NewWebhookHandler(webhookService)
-
-	// 5. Inicia o servidor gRPC
+	// 2. Prepara o servidor gRPC
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("Falha ao iniciar o servidor gRPC: %v", err)
 	}
-
 	s := grpc.NewServer()
-	pb.RegisterWebhookProcessorServiceServer(s, webhookHandler)
 	reflection.Register(s)
 
-	slog.Info("Servidor gRPC do Webhook Processor iniciado na porta 50051...")
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("Falha ao servir: %v", err)
-	}
+	// 3. Inicia o servidor gRPC em uma goroutine
+	go func() {
+		slog.Info("Servidor gRPC do Webhook Processor iniciado na porta 50051...")
+		if err := s.Serve(lis); err != nil {
+			slog.Error("Falha ao servir", "error", err)
+		}
+	}()
+
+	// 4. Bloqueia a execução da main até que um sinal de interrupção seja recebido
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
+
+	// 5. Lógica de encerramento
+	slog.Info("Sinal de interrupção recebido, encerrando o serviço...")
+	s.GracefulStop() // Encerra o servidor gRPC
+	cancel()         // Cancela o contexto, sinalizando para as goroutines de background pararem
 }

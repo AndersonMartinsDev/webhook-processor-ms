@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"webhook-processor-ms/internal/infrastructure/commons/logger"
+	"webhook-processor-ms/internal/infrastructure/database"
 
 	"github.com/joho/godotenv"
 )
@@ -33,4 +35,13 @@ func LoadServer(routers http.Handler) {
 	if erro := http.ListenAndServe(fmt.Sprintf(":%d", Porta), routers); erro != nil {
 		panic(fmt.Sprintf("Error ao iniciar servidor %s", erro.Error()))
 	}
+}
+
+func LoadRedis() {
+	redis_address := os.Getenv("REDIS_ADDR")
+	redis_port := os.Getenv("REDIS_PORT")
+	redis_pass := os.Getenv("REDIS_PASSWORD")
+
+	database.SetRedisEnv(redis_address, redis_port, redis_pass)
+	database.InitializeCache()
 }
