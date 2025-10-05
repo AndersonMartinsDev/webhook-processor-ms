@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"webhook-processor-ms/cmd"
@@ -18,9 +19,12 @@ import (
 )
 
 func main() {
-	configuration.LoadEnv()
+	// configuration.LoadEnv()
 	configuration.LoadLogger()
 	configuration.LoadRedis()
+
+	// 1. Cria um WaitGroup para gerenciar o encerramento das goroutines
+	var wg sync.WaitGroup
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -32,19 +36,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("Falha ao conectar no RabbitMQ: %v", err)
 	}
+	// Fecha a conexão somente depois que todas as goroutines estiverem encerradas
+	defer conn.Close()
 
 	// Injeção de dependências e inicialização dos serviços
 	webhook_service := ms_compose.MessageProcessorConfiguration(conn)
 
-	// Defer para fechar recursos (importante a ordem)
-	defer webhook_service.Publisher.Close()
-	defer webhook_service.Consumer.Close()
-	defer conn.Close()
+	// 2. Inicia o consumidor do RabbitMQ em uma goroutine e o adiciona ao WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		webhook_service.ProcessMessages(ctx)
+	}()
 
-	// 1. Inicia o consumidor do RabbitMQ em uma goroutine
-	go webhook_service.ProcessMessages(ctx)
-
-	// 2. Prepara o servidor gRPC
+	// 3. Prepara e inicia o servidor gRPC
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("Falha ao iniciar o servidor gRPC: %v", err)
@@ -52,8 +57,9 @@ func main() {
 	s := grpc.NewServer()
 	reflection.Register(s)
 
-	// 3. Inicia o servidor gRPC em uma goroutine
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		slog.Info("Servidor gRPC do Webhook Processor iniciado na porta 50051...")
 		if err := s.Serve(lis); err != nil {
 			slog.Error("Falha ao servir", "error", err)
@@ -66,7 +72,13 @@ func main() {
 	<-sigChan
 
 	// 5. Lógica de encerramento
-	slog.Info("Sinal de interrupção recebido, encerrando o serviço...")
+	slog.Info("Sinal de interrupção recebido, iniciando o encerramento...")
+
 	s.GracefulStop() // Encerra o servidor gRPC
 	cancel()         // Cancela o contexto, sinalizando para as goroutines de background pararem
+
+	// Espera as goroutines finalizarem
+	wg.Wait()
+
+	slog.Info("Todos os serviços foram encerrados com sucesso.")
 }

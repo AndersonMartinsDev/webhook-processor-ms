@@ -32,7 +32,7 @@ func (manager MSCompose) MessageProcessorConfiguration(conn *amqp.Connection) *s
 	if err != nil {
 		log.Fatalf("Falha ao criar publicador RabbitMQ: %v", err)
 	}
-	consumer, err := rabbitmq.NewConsumer(conn, "whatsapp-webhooks-raw")
+	consumerPf, err := rabbitmq.NewConsumer(conn, "whatsapp-webhooks-pf-raw")
 	if err != nil {
 		log.Fatalf("Falha ao criar consumidor RabbitMQ: %v", err)
 	}
@@ -40,5 +40,5 @@ func (manager MSCompose) MessageProcessorConfiguration(conn *amqp.Connection) *s
 	sessionService := services.NewSessionService(redisRepository)
 	agentModelService := services.NewAgentModelService(agent_model_client)
 
-	return services.NewWebhookService(publisher, consumer, sessionService, agentModelService)
+	return services.NewWebhookService(publisher, consumerPf, sessionService, agentModelService)
 }
