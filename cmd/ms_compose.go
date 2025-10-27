@@ -36,9 +36,13 @@ func (manager MSCompose) MessageProcessorConfiguration(conn *amqp.Connection) *s
 	if err != nil {
 		log.Fatalf("Falha ao criar consumidor RabbitMQ: %v", err)
 	}
+	consumerPj, err := rabbitmq.NewConsumer(conn, "whatsapp-webhooks-pj-raw")
+	if err != nil {
+		log.Fatalf("Falha ao criar consumidor RabbitMQ: %v", err)
+	}
 	redisRepository := repository.NewRedisRepository()
 	sessionService := services.NewSessionService(redisRepository)
 	agentModelService := services.NewAgentModelService(agent_model_client)
 
-	return services.NewWebhookService(publisher, consumerPf, sessionService, agentModelService)
+	return services.NewWebhookService(publisher, consumerPf, consumerPj, sessionService, agentModelService)
 }

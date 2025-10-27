@@ -2,7 +2,7 @@ package services
 
 import (
 	"context"
-	"log/slog"
+	"time"
 	"webhook-processor-ms/internal/domain/ms"
 	"webhook-processor-ms/proto"
 )
@@ -17,15 +17,12 @@ func NewAgentModelService(client ms.AgentModelClient) *AgentModelService {
 	}
 }
 
-func (s *AgentModelService) GetAgentId(phoneNumber string) uint64 {
-	ctx := context.Background()
+func (s *AgentModelService) GetAgentId(phoneNumber string) (uint64, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
 	req := proto.AgentRequest{
 		PhoneNumber: phoneNumber,
 	}
 	res, err := s.client.GetAgentModelByPhone(ctx, &req)
-	if err != nil {
-		slog.Error("Error para recuperar identificador de agente")
-		return uint64(0)
-	}
-	return res.AgentId
+	return res.AgentId, err
 }
