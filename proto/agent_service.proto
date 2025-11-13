@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package agent;
+package proto;
 
-option go_package = "seu-projeto/proto";
+option go_package = "webhook-processor-ms/proto";
 
 service AIAgentService {
   rpc CreateAgent(CreateAgentRequest) returns (CreateAgentResponse);
@@ -11,7 +11,15 @@ service AIAgentService {
   rpc ListAgents(ListAgentsRequest) returns (ListAgentsResponse);
   rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentResponse);
   rpc GetAgentModelByPhone(AgentRequest) returns (AgentResponse);
+  rpc GetBehaviorAgentIa (GetBehaviorAgentIaRequest) returns (GetBehaviorAgentIaResponse);
 }
+
+message GetBehaviorAgentIaRequest {}
+
+message GetBehaviorAgentIaResponse {
+  map<int32, string> comportamentos = 1;
+}
+
 message AgentRequest {
   string phoneNumber = 1;
 }

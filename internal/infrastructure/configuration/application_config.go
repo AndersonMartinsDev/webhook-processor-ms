@@ -17,6 +17,7 @@ var (
 )
 
 func LoadEnv() {
+
 	if erro := godotenv.Load(); erro != nil {
 		panic("Error ao carregar as variáveis de ambiente!")
 	}
@@ -40,8 +41,8 @@ func LoadServer(routers http.Handler) {
 func LoadRedis() {
 	redis_address := os.Getenv("REDIS_ADDR")
 	redis_port := os.Getenv("REDIS_PORT")
-	redis_pass := os.Getenv("REDIS_PASSWORD")
+	// redis_pass := GetSecret("REDIS_PASSWORD")
 
-	database.SetRedisEnv(redis_address, redis_port, redis_pass)
+	database.SetRedisEnv(redis_address, redis_port, "")
 	database.InitializeCache()
 }

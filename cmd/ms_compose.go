@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"webhook-processor-ms/internal/application/services"
+	"webhook-processor-ms/internal/infrastructure/configuration"
 	"webhook-processor-ms/internal/infrastructure/grpc_client"
 	"webhook-processor-ms/internal/infrastructure/rabbitmq"
 	"webhook-processor-ms/internal/infrastructure/repository"
@@ -21,7 +22,8 @@ type MSCompose struct {
 func NewMSCompose() *MSCompose {
 	return &MSCompose{
 		AgentModelMSUrl: os.Getenv("AGENT_MODEL_URL"),
-		RabbitMQURL:     os.Getenv("RABBITMQ_URL"),
+		RabbitMQURL:     configuration.GetSecret("RABBITMQ_URL"),
+		// RabbitMQURL: os.Getenv("RABBITMQ_URL"),
 	}
 }
 

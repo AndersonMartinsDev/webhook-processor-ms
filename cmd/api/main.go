@@ -46,7 +46,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		webhook_service.ProcessMessages(ctx)
+		webhook_service.ReadMessages(ctx)
 	}()
 
 	// 3. Prepara e inicia o servidor gRPC
